@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <!-- https://github.com/mrdoob/three.js/blob/master/examples/webgl_geometry_spline_editor.html
 https://threejs.org/examples/#webgl_geometry_spline_editor 
-https://discourse.threejs.org/t/select-object-on-click/23855-->
+https://discourse.threejs.org/t/select-object-on-click/23855
+
+
+https://jasonchen1982.github.io/three.interaction.js/examples/interaction/
+https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/interaction/index.html
+-->
 <html lang="en">
 	<head>
 		<title>R O B O T</title>
@@ -9,6 +14,10 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
         
 	</head>
 	<body>
+
+		<div id="infoOutput">
+			Object Index
+		</div>
 
 		<script async src="js/es-module-shims.js"></script>
 
@@ -25,19 +34,23 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
 			import * as THREE from 'three';
 			import { OrbitControls } from './js//OrbitControls.js';
             import { GUI } from './js/lil-gui.module.min.js';
-            import { TransformControls } from './js/TransformControls.js';
 
-			let camera, scene, renderer, controls;
-            let rollOverMesh, rollOverMaterial, plane;
-            let cubeGeo, cubeMaterial;
-            let pointer, raycaster, isShiftDown = false;
+			let camera, scene, renderer, controls, plane;
+			const raycaster = new THREE.Raycaster();
 
-			const mouse = new THREE.Vector2( 1, 1 );
+			const mouse = new THREE.Vector2( );
+			const amount = parseInt( window.location.search.substr( 1 ) ) || 10;
+			const count = Math.pow( amount, 3 );
+			const color = new THREE.Color();
             const objects = [];
+
+			let voxel;
+			let objectIndex = 0;
             let transformControl;
+			let currInstanceId = -1;
 
             const params = {
-				addPoint: addPoint
+				moveObject: moveObject
 			};
 
 
@@ -54,13 +67,13 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
 				scene = new THREE.Scene();
                 scene.background = new THREE.Color( 0xf0f0f0 );
 
-                raycaster = new THREE.Raycaster();
-				pointer = new THREE.Vector2();
-
                 // cubes
-				cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
-				cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
-
+				// cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
+			    // const cubeGeo = new THREE.IcosahedronGeometry( 50, 3 );
+				// const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
+				// const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+				// voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
+			    // matrix = new THREE.Matrix4();
 
                 // lighting for 3d objects
 				const light = new THREE.HemisphereLight( 0xffffff, 0x888888 );
@@ -77,30 +90,34 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
                 plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
                 scene.add( plane );
 
-                // gui
+				// gui
                 const gui = new GUI();
-                gui.add( params, 'addPoint' );
+                gui.add( params, 'moveObject' );
                 gui.open();
+
+				const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
+				const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+				voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
+			    const matrix = new THREE.Matrix4();
+
+				//make random cubes <-- simulates input of coordinates
+				for ( let x = 0; x < 5; x++ ) {
+
+					matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
+
+					voxel.setMatrixAt( objectIndex, matrix );
+					voxel.setColorAt( objectIndex, color );
+
+					objectIndex ++;
+
+				}
+				scene.add(voxel);
 
 				// render commands
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				document.body.appendChild( renderer.domElement );
-
-                // object selection
-                transformControl = new TransformControls( camera, renderer.domElement );
-				transformControl.addEventListener( 'change', render );
-				transformControl.addEventListener( 'dragging-changed', function ( event ) {
-					controls.enabled = ! event.value;
-				} );
-				scene.add( transformControl );
-
-				transformControl.addEventListener( 'objectChange', function () {
-
-					updateSplineOutline();
-
-				} );
 
                 // perspective controls
 				controls = new OrbitControls( camera, renderer.domElement );
@@ -110,67 +127,45 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
 
 				window.addEventListener( 'resize', onWindowResize );
 
-                document.addEventListener( 'pointermove', onPointerMove );
-                document.addEventListener( 'pointerdown', onPointerDown );
-                document.addEventListener( 'pointerup', onPointerUp );
-                
-
-
+                document.addEventListener( 'click', onClick );
 			}
 
-            function onPointerMove( event ) {
+            function onClick( event ) {
 
-                // pointer.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
-                // raycaster.setFromCamera( pointer, camera );
-                // const intersects = raycaster.intersectObjects( objects, false );
-                // if ( intersects.length > 0 ) {
-                //     const intersect = intersects[ 0 ];
-                //     rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
-                //     rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
-                //     render();
-                // }
+				// event.preventDefault();
+                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
-                pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-				pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+				raycaster.setFromCamera( mouse, camera );
 
-				raycaster.setFromCamera( pointer, camera );
+				const intersection = raycaster.intersectObject( voxel );
+				if ( intersection.length > 0 ) {
+					const instanceId = intersection[ 0 ].instanceId;
+					currInstanceId = instanceId;
+					
+					voxel.setColorAt( currInstanceId, color.setHex( Math.random() * 0xffffff ) );
+					voxel.instanceColor.needsUpdate = true;
 
-				const intersects = raycaster.intersectObjects( objects, false );
-				if ( intersects.length > 0 ) {
-					const object2 = intersects[ 0 ].object;
-					if ( object2 !== transformControl.object ) {
-						transformControl.attach( object2 );
-					}
-
+					// console.log(voxel);
+					// var position = new THREE.Vector3();
+					// var x = voxel.setFromMatrixPosition(instanceId, matrix);
+					// console.log(x);
+					document.getElementById("infoOutput").innerHTML = "Object Index: " + instanceId;
+					
 				}
             }
+			
 
-            function onPointerDown( event ) {
-                onDownPosition.x = event.clientX;
-                onDownPosition.y = event.clientY;
-            }
+			function moveObject() {
+				if(currInstanceId >= 0){
+					// moves position to random location
+					const matrix = new THREE.Matrix4();
+					matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 )
+					voxel.setMatrixAt(currInstanceId, matrix)
+					voxel.instanceMatrix.needsUpdate = true;
+				}
+			}
 
-            function onPointerUp() {
-                onUpPosition.x = event.clientX;
-                onUpPosition.y = event.clientY;
-
-                if ( onDownPosition.distanceTo( onUpPosition ) === 0 ) transformControl.detach();
-            }
-            
-
-
-            // sets the box
-            function addPoint() {
-
-                const voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
-                // TODO: placeholder coordinate, use user input
-                voxel.position.set(Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500);
-                scene.add( voxel );
-
-                objects.push( voxel );
-                render();
-
-            }
 
 			function onWindowResize() {
 				camera.aspect = window.innerWidth / window.innerHeight;
@@ -181,7 +176,7 @@ https://discourse.threejs.org/t/select-object-on-click/23855-->
 			function animate() {
 				requestAnimationFrame( animate );
 				controls.update();
-				raycaster.setFromCamera( mouse, camera );
+				// raycaster.setFromCamera( mouse, camera );
 
 				render();
 			}

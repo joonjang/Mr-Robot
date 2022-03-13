@@ -16,8 +16,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 	<body>
 
 		<div id="infoOutput">
-			Object Index
+			Object Index: -
 		</div>
+
+		<!-- <input type="file" id="file-selector"> -->
 
 		<script async src="js/es-module-shims.js"></script>
 
@@ -35,6 +37,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			import { OrbitControls } from './js//OrbitControls.js';
             import { GUI } from './js/lil-gui.module.min.js';
 
+			const ENVIRONMENT_SCALE = 10;
+
 			let camera, scene, renderer, controls, plane;
 			const raycaster = new THREE.Raycaster();
 
@@ -43,6 +47,12 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			const count = Math.pow( amount, 3 );
 			const color = new THREE.Color();
             const objects = [];
+			const position = [];
+			const tracker = [];
+
+			const loader = new THREE.FileLoader();
+			
+			THREE.Cache.enabled = true;
 
 			let voxel;
 			let objectIndex = 0;
@@ -58,10 +68,76 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			// render();
             animate();
 
+			//!!! TODO: figure out how to load files dynamically 
+
+			// const fileSelector = document.getElementById('file-selector');
+			// fileSelector.addEventListener('change', (event) => {
+			// 	const fileList = event.target.files;
+			// 	console.log(fileList);
+			// 	loader.load(fileList[0], );
+			// });
+
+			//https://threejs.org/docs/#api/en/loaders/FileLoader.setResponseType
+			//load a text file and output the result to the console
+			loader.load(
+				// resource URL
+				'scanplan.txt',
+
+				// onLoad callback
+				function ( data ) {
+					// output the text to the console
+					// console.log( data )
+					parsePlots( data );
+					
+				},
+
+				
+
+				// onProgress callback
+				function ( xhr ) {
+					console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
+				},
+
+				// onError callback
+				function ( err ) {
+					console.error( 'An error happened' );
+				}
+			);
+
+			function parsePlots( data ){
+				// console.log(data);
+
+				var lines = data.split("\n");
+				// console.log(lines);
+
+				for(let i = 0; i < lines.length; i++){
+
+					// console.log( lines[i] );
+
+					var commandCode = lines[i].split(" ")[0];
+					var instruction = lines[i].substring(lines[i].indexOf(" ") + 1);
+
+					switch(commandCode) {
+						case "p":
+							position.push(instruction);
+							break;
+						case "pt":
+							tracker.push(instruction);
+							break;
+					}
+				}
+
+				// console.log(position);
+				// console.log(tracker);
+
+				spawnBoxes();
+				
+			};
+
 			function init() {
 
-				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
-				camera.position.set( 500, 800, 1300 );
+				camera = new THREE.PerspectiveCamera( 45, (window.innerWidth) / (window.innerHeight), 1, 100*ENVIRONMENT_SCALE );
+				camera.position.set( 5*ENVIRONMENT_SCALE, 8*ENVIRONMENT_SCALE, 13*ENVIRONMENT_SCALE );
 				camera.lookAt( 0, 0, 0 );
 
 				scene = new THREE.Scene();
@@ -81,11 +157,11 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 				scene.add( light );
 
                 // grid 
-                const gridHelper = new THREE.GridHelper( 1000, 20 );
+                const gridHelper = new THREE.GridHelper( 9*ENVIRONMENT_SCALE, 5*ENVIRONMENT_SCALE );
 				scene.add( gridHelper );
 
                 // push objects to plane of grid
-                const geometry = new THREE.PlaneGeometry( 1000, 1000 );
+                const geometry = new THREE.PlaneGeometry( 50, 50 );
 				geometry.rotateX( - Math.PI / 2 );
                 plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
                 scene.add( plane );
@@ -95,23 +171,9 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
                 gui.add( params, 'moveObject' );
                 gui.open();
 
-				const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
-				const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-				voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
-			    const matrix = new THREE.Matrix4();
-
-				//make random cubes <-- simulates input of coordinates
-				for ( let x = 0; x < 5; x++ ) {
-
-					matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
-
-					voxel.setMatrixAt( objectIndex, matrix );
-					voxel.setColorAt( objectIndex, color );
-
-					objectIndex ++;
-
-				}
-				scene.add(voxel);
+				// // create boxes
+				// spawnBoxes();
+				
 
 				// render commands
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -130,11 +192,36 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
                 document.addEventListener( 'click', onClick );
 			}
 
+			function spawnBoxes(){
+				const cubeGeo = new THREE.BoxGeometry( 3, 3, 3 );
+				const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+				voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
+			    const matrix = new THREE.Matrix4();
+
+				// console.log(position);
+
+				//make random cubes <-- simulates input of coordinates
+				for ( let i = 0; i < position.length; i++ ) {
+
+					var cordXYZ = position[i].split(" ");
+
+					// matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
+					matrix.setPosition(cordXYZ[0], cordXYZ[1], cordXYZ[2]);
+
+					voxel.setMatrixAt( objectIndex, matrix );
+					voxel.setColorAt( objectIndex, color );
+
+					objectIndex ++;
+
+				}
+				scene.add(voxel);
+			}
+
             function onClick( event ) {
 
 				// event.preventDefault();
-                mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+                mouse.x = ( (event.clientX) / (window.innerWidth) ) * 2 - 1;
+				mouse.y = - ( (event.clientY) / (window.innerHeight) ) * 2 + 1;
 
 				raycaster.setFromCamera( mouse, camera );
 
@@ -146,21 +233,19 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 					voxel.setColorAt( currInstanceId, color.setHex( Math.random() * 0xffffff ) );
 					voxel.instanceColor.needsUpdate = true;
 
-					// console.log(voxel);
-					// var position = new THREE.Vector3();
-					// var x = voxel.setFromMatrixPosition(instanceId, matrix);
-					// console.log(x);
-					document.getElementById("infoOutput").innerHTML = "Object Index: " + instanceId;
+					// moveObject();
+					document.getElementById("infoOutput").innerHTML = "Object Index: " + instanceId + " --- position: " + position[instanceId] + " --- tracker: " + tracker[instanceId] ;
 					
 				}
             }
 			
 
+			// debugging function to prove that objects can be moved after creation
 			function moveObject() {
 				if(currInstanceId >= 0){
 					// moves position to random location
 					const matrix = new THREE.Matrix4();
-					matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 )
+					matrix.setPosition( Math.random() * 100 - 50, Math.random() * 1, Math.random() * 100 - 50 )
 					voxel.setMatrixAt(currInstanceId, matrix)
 					voxel.instanceMatrix.needsUpdate = true;
 				}
@@ -168,7 +253,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
 
 			function onWindowResize() {
-				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.aspect = (window.innerWidth / window.innerHeight);
 				camera.updateProjectionMatrix();
 				renderer.setSize( window.innerWidth, window.innerHeight );
 			}

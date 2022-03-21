@@ -19,7 +19,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			Object Index: -
 		</div>
 
-		<!-- <input type="file" id="file-selector"> -->
+		<input type="file" id="file-selector" accept="text/plain">
 
 		<script async src="js/es-module-shims.js"></script>
 
@@ -65,44 +65,25 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
 
 			init();
-			// render();
             animate();
 
-			//!!! TODO: figure out how to load files dynamically 
+			//https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications
+			//https://developer.mozilla.org/en-US/docs/Web/API/File
+			//https://developer.mozilla.org/en-US/docs/Web/API/Blob/text
+			const fileSelector = document.getElementById('file-selector');
+			fileSelector.addEventListener('change', (event) => {
+				const fileList = event.target.files;
+				var file = fileList[0];
 
-			// const fileSelector = document.getElementById('file-selector');
-			// fileSelector.addEventListener('change', (event) => {
-			// 	const fileList = event.target.files;
-			// 	console.log(fileList);
-			// 	loader.load(fileList[0], );
-			// });
+				// console.log(fileList);
+				// console.log(file.text());
 
-			//https://threejs.org/docs/#api/en/loaders/FileLoader.setResponseType
-			//load a text file and output the result to the console
-			loader.load(
-				// resource URL
-				'scanplan.txt',
+				file.text().then(function(text){
+					// console.log(text);
+					parsePlots(text);
+				});
+			});
 
-				// onLoad callback
-				function ( data ) {
-					// output the text to the console
-					// console.log( data )
-					parsePlots( data );
-					
-				},
-
-				
-
-				// onProgress callback
-				function ( xhr ) {
-					console.log( (xhr.loaded / xhr.total * 100) + '% loaded' );
-				},
-
-				// onError callback
-				function ( err ) {
-					console.error( 'An error happened' );
-				}
-			);
 
 			function parsePlots( data ){
 				// console.log(data);

@@ -15,11 +15,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 	</head>
 	<body>
 
-		<div id="infoOutput">
-			Object Index: -
-		</div>
-
-		<input type="file" id="file-selector" accept="text/plain">
+		<!-- https://stackoverflow.com/questions/23417991/load-a-file-using-a-dat-gui-button -->
+		<input type="file" id="file-selector" accept="text/plain" style="visibility:hidden; display: block; height: 0;" />
 
 		<script async src="js/es-module-shims.js"></script>
 
@@ -60,7 +57,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			let cubeLine = [];
 
             const params = {
-				moveObject: moveObject
+				moveObject: moveObject,
+				loadFile : function(){
+					document.getElementById('file-selector').click();
+				}
 			};
 
 
@@ -164,7 +164,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 				//https://sbcode.net/threejs/dat-gui/
 				//https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
 				// gui
-                
+				gui.add( params, 'loadFile');
                 gui.add( params, 'moveObject' );
 				
 

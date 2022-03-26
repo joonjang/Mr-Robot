@@ -34,8 +34,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 		<script type="module">
 
 			import * as THREE from 'three';
-			import { OrbitControls } from './js//OrbitControls.js';
-            import { GUI } from './js/lil-gui.module.min.js';
+			import { OrbitControls } from './js/OrbitControls.js';
+            import { GUI } from './js/datjs/dat.gui.module.js';
 
 			const ENVIRONMENT_SCALE = 10;
 
@@ -46,9 +46,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			const amount = parseInt( window.location.search.substr( 1 ) ) || 10;
 			const count = Math.pow( amount, 3 );
 			const color = new THREE.Color();
-            const objects = [];
-			const position = [];
-			const tracker = [];
+			const commandLine = [];
+			const gui = new GUI();
 
 			const loader = new THREE.FileLoader();
 			
@@ -58,6 +57,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			let objectIndex = 0;
             let transformControl;
 			let currInstanceId = -1;
+			let cubeLine = [];
 
             const params = {
 				moveObject: moveObject
@@ -85,28 +85,42 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 			});
 
 
+			// todo: revise instruction line logic to key/value pairing for each array index
 			function parsePlots( data ){
-				// console.log(data);
+				console.log(data);
 
-				var lines = data.split("\n");
+				let lines = data.split("\n");
 				// console.log(lines);
-
 				for(let i = 0; i < lines.length; i++){
 
-					// console.log( lines[i] );
-
-					var commandCode = lines[i].split(" ")[0];
-					var instruction = lines[i].substring(lines[i].indexOf(" ") + 1);
-
-					switch(commandCode) {
-						case "p":
-							position.push(instruction);
-							break;
-						case "pt":
-							tracker.push(instruction);
-							break;
+					let keyValOfLine = lines[i].split(" ");
+					
+					// console.log(keyValOfLine);
+					let key = [];
+					let value = [];
+					// make array of keys and array of value
+					for(let j = 0; j < keyValOfLine.length; j++){
+						if(j % 2 == 0){
+							key.push(keyValOfLine[j]);
+						} else if(j % 2 == 1 ){
+							value.push(keyValOfLine[j]);
+						}
 					}
+					// console.log("KEY VAL");
+					// console.log(key);
+					// console.log(value);
+
+					let keyValObj = {};
+					for(let k = 0; k < key.length; k++){
+						let keyStr = String(key[k]);
+						let valStr = String(value[k]);
+						keyValObj[keyStr] = valStr;
+					}
+					// console.log(keyValObj);
+					commandLine.push(keyValObj);
 				}
+				
+				// console.log(commandLine);
 
 				// console.log(position);
 				// console.log(tracker);
@@ -138,7 +152,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 				scene.add( light );
 
                 // grid 
-                const gridHelper = new THREE.GridHelper( 9*ENVIRONMENT_SCALE, 5*ENVIRONMENT_SCALE );
+                const gridHelper = new THREE.GridHelper( 9 * ENVIRONMENT_SCALE, 5 * ENVIRONMENT_SCALE );
 				scene.add( gridHelper );
 
                 // push objects to plane of grid
@@ -147,14 +161,13 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
                 plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
                 scene.add( plane );
 
+				//https://sbcode.net/threejs/dat-gui/
+				//https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
 				// gui
-                const gui = new GUI();
+                
                 gui.add( params, 'moveObject' );
-                gui.open();
-
-				// // create boxes
-				// spawnBoxes();
 				
+
 
 				// render commands
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
@@ -182,12 +195,14 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 				// console.log(position);
 
 				//make random cubes <-- simulates input of coordinates
-				for ( let i = 0; i < position.length; i++ ) {
+				for ( let i = 0; i < commandLine.length; i++ ) {
 
-					var cordXYZ = position[i].split(" ");
-
+					// console.log("XYZ");
+					// console.log(commandLine[i].x);
+					// console.log(commandLine[i].y);
+					// console.log(commandLine[i].z);
 					// matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
-					matrix.setPosition(cordXYZ[0], cordXYZ[1], cordXYZ[2]);
+					matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
 
 					voxel.setMatrixAt( objectIndex, matrix );
 					voxel.setColorAt( objectIndex, color );
@@ -206,6 +221,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
 				raycaster.setFromCamera( mouse, camera );
 
+				let oldId = currInstanceId;
 				const intersection = raycaster.intersectObject( voxel );
 				if ( intersection.length > 0 ) {
 					const instanceId = intersection[ 0 ].instanceId;
@@ -215,9 +231,27 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 					voxel.instanceColor.needsUpdate = true;
 
 					// moveObject();
-					document.getElementById("infoOutput").innerHTML = "Object Index: " + instanceId + " --- position: " + position[instanceId] + " --- tracker: " + tracker[instanceId] ;
+					document.getElementById("infoOutput").innerHTML = "Object Index: " + instanceId + " --- instructions: " + commandLine[instanceId] ;
 					
 				}
+
+				// populates GUI dynamically
+				if(oldId != currInstanceId){
+					if(cubeLine.length != 0){
+						for(let i = 0; i < cubeLine.length; i++){
+							gui.remove(cubeLine[i]);
+						}
+						cubeLine = [];
+					}
+					// console.log(Object.keys(commandLine[currInstanceId])[0] );
+					for(let i = 0; i < Object.keys(commandLine[currInstanceId]).length; i++){
+						// console.log(Object.keys(commandLine[currInstanceId])[i]);
+						cubeLine.push(gui.add( commandLine[currInstanceId], Object.keys(commandLine[currInstanceId])[i] ));
+					}
+					
+				}
+
+				
             }
 			
 

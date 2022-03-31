@@ -8,280 +8,335 @@ https://jasonchen1982.github.io/three.interaction.js/examples/interaction/
 https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/interaction/index.html
 -->
 <html lang="en">
-	<head>
-		<title>R O B O T</title>
-		<meta charset="utf-8">
-        
-	</head>
-	<body>
+  <head>
+    <title>R O B O T</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <!-- https://stackoverflow.com/questions/23417991/load-a-file-using-a-dat-gui-button -->
+    <input
+      type="file"
+      id="file-selector"
+      accept="text/plain"
+      style="visibility: hidden; display: block; height: 0"
+    />
 
-		<!-- https://stackoverflow.com/questions/23417991/load-a-file-using-a-dat-gui-button -->
-		<input type="file" id="file-selector" accept="text/plain" style="visibility:hidden; display: block; height: 0;" />
+    <script async src="js/es-module-shims.js"></script>
 
-		<script async src="js/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../build/three.module.js"
+        }
+      }
+    </script>
 
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "../build/three.module.js"
-				}
-			}
-		</script>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "./js/OrbitControls.js";
+      import { GUI } from "./js/datjs/dat.gui.module.js";
 
-		<script type="module">
+      const ENVIRONMENT_SCALE = 10;
 
-			import * as THREE from 'three';
-			import { OrbitControls } from './js/OrbitControls.js';
-            import { GUI } from './js/datjs/dat.gui.module.js';
+      let camera, scene, renderer, controls, plane;
+      const raycaster = new THREE.Raycaster();
 
-			const ENVIRONMENT_SCALE = 10;
+      const mouse = new THREE.Vector2();
+      const amount = parseInt(window.location.search.substr(1)) || 10;
+      const count = Math.pow(amount, 3);
+      const color = new THREE.Color();
+      const commandLine = [];
+      const gui = new GUI();
 
-			let camera, scene, renderer, controls, plane;
-			const raycaster = new THREE.Raycaster();
+      const loader = new THREE.FileLoader();
 
-			const mouse = new THREE.Vector2( );
-			const amount = parseInt( window.location.search.substr( 1 ) ) || 10;
-			const count = Math.pow( amount, 3 );
-			const color = new THREE.Color();
-			const commandLine = [];
-			const gui = new GUI();
+      THREE.Cache.enabled = true;
 
-			const loader = new THREE.FileLoader();
-			
-			THREE.Cache.enabled = true;
+      let voxel;
+      let objectIndex = 0;
+      let transformControl;
+      let currInstanceId = -1;
+      let cubeLine = [];
 
-			let voxel;
-			let objectIndex = 0;
-            let transformControl;
-			let currInstanceId = -1;
-			let cubeLine = [];
+      const params = {
+        moveObject: moveObject,
+        saveFile: saveFile,
+        loadFile: function () {
+          document.getElementById("file-selector").click();
+        },
+      };
 
-            const params = {
-				moveObject: moveObject,
-				loadFile : function(){
-					document.getElementById('file-selector').click();
-				}
-			};
+      init();
+      animate();
 
+      //https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications
+      //https://developer.mozilla.org/en-US/docs/Web/API/File
+      //https://developer.mozilla.org/en-US/docs/Web/API/Blob/text
+      const fileSelector = document.getElementById("file-selector");
+      fileSelector.addEventListener("change", (event) => {
+        const fileList = event.target.files;
+        var file = fileList[0];
 
-			init();
-            animate();
+        // console.log(fileList);
+        // console.log(file.text());
 
-			//https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications
-			//https://developer.mozilla.org/en-US/docs/Web/API/File
-			//https://developer.mozilla.org/en-US/docs/Web/API/Blob/text
-			const fileSelector = document.getElementById('file-selector');
-			fileSelector.addEventListener('change', (event) => {
-				const fileList = event.target.files;
-				var file = fileList[0];
+        file.text().then(function (text) {
+          // console.log(text);
+          parsePlots(text);
+        });
+      });
 
-				// console.log(fileList);
-				// console.log(file.text());
+      // todo: revise instruction line logic to key/value pairing for each array index
+      function parsePlots(data) {
+        console.log(data);
 
-				file.text().then(function(text){
-					// console.log(text);
-					parsePlots(text);
-				});
-			});
+        let lines = data.split("\n");
+        // console.log(lines);
+        for (let i = 0; i < lines.length; i++) {
+          let keyValOfLine = lines[i].split(" ");
 
-
-			// todo: revise instruction line logic to key/value pairing for each array index
-			function parsePlots( data ){
-				console.log(data);
-
-				let lines = data.split("\n");
-				// console.log(lines);
-				for(let i = 0; i < lines.length; i++){
-
-					let keyValOfLine = lines[i].split(" ");
-					
-					// console.log(keyValOfLine);
-					let key = [];
-					let value = [];
-					// make array of keys and array of value
-					for(let j = 0; j < keyValOfLine.length; j++){
-						if(j % 2 == 0){
-							key.push(keyValOfLine[j]);
-						} else if(j % 2 == 1 ){
-							value.push(keyValOfLine[j]);
-						}
-					}
-					// console.log("KEY VAL");
-					// console.log(key);
-					// console.log(value);
-
-					let keyValObj = {};
-					for(let k = 0; k < key.length; k++){
-						let keyStr = String(key[k]);
-						let valStr = String(value[k]);
-						keyValObj[keyStr] = valStr;
-					}
-					// console.log(keyValObj);
-					commandLine.push(keyValObj);
-				}
-				
-				// console.log(commandLine);
-
-				// console.log(position);
-				// console.log(tracker);
-
-				spawnBoxes();
-				
-			};
-
-			function init() {
-
-				camera = new THREE.PerspectiveCamera( 45, (window.innerWidth) / (window.innerHeight), 1, 100*ENVIRONMENT_SCALE );
-				camera.position.set( 5*ENVIRONMENT_SCALE, 8*ENVIRONMENT_SCALE, 13*ENVIRONMENT_SCALE );
-				camera.lookAt( 0, 0, 0 );
-
-				scene = new THREE.Scene();
-                scene.background = new THREE.Color( 0xf0f0f0 );
-
-                // cubes
-				// cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
-			    // const cubeGeo = new THREE.IcosahedronGeometry( 50, 3 );
-				// const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
-				// const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-				// voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
-			    // matrix = new THREE.Matrix4();
-
-                // lighting for 3d objects
-				const light = new THREE.HemisphereLight( 0xffffff, 0x888888 );
-				light.position.set( 0, 1, 0 );
-				scene.add( light );
-
-                // grid 
-                const gridHelper = new THREE.GridHelper( 9 * ENVIRONMENT_SCALE, 5 * ENVIRONMENT_SCALE );
-				scene.add( gridHelper );
-
-                // push objects to plane of grid
-                const geometry = new THREE.PlaneGeometry( 50, 50 );
-				geometry.rotateX( - Math.PI / 2 );
-                plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
-                scene.add( plane );
-
-				//https://sbcode.net/threejs/dat-gui/
-				//https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
-				// gui
-				gui.add( params, 'loadFile');
-                gui.add( params, 'moveObject' );
-				
-
-
-				// render commands
-				renderer = new THREE.WebGLRenderer( { antialias: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
-				document.body.appendChild( renderer.domElement );
-
-                // perspective controls
-				controls = new OrbitControls( camera, renderer.domElement );
-				controls.enableDamping = true;
-				controls.enableZoom = true;
-				controls.enablePan = false;
-
-				window.addEventListener( 'resize', onWindowResize );
-
-                document.addEventListener( 'click', onClick );
-			}
-
-			function spawnBoxes(){
-				const cubeGeo = new THREE.BoxGeometry( 3, 3, 3 );
-				const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-				voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
-			    const matrix = new THREE.Matrix4();
-
-				// console.log(position);
-
-				//make random cubes <-- simulates input of coordinates
-				for ( let i = 0; i < commandLine.length; i++ ) {
-
-					// console.log("XYZ");
-					// console.log(commandLine[i].x);
-					// console.log(commandLine[i].y);
-					// console.log(commandLine[i].z);
-					// matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
-					matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
-
-					voxel.setMatrixAt( objectIndex, matrix );
-					voxel.setColorAt( objectIndex, color );
-
-					objectIndex ++;
-
-				}
-				scene.add(voxel);
-			}
-
-            function onClick( event ) {
-
-				// event.preventDefault();
-                mouse.x = ( (event.clientX) / (window.innerWidth) ) * 2 - 1;
-				mouse.y = - ( (event.clientY) / (window.innerHeight) ) * 2 + 1;
-
-				raycaster.setFromCamera( mouse, camera );
-
-				let oldId = currInstanceId;
-				const intersection = raycaster.intersectObject( voxel );
-				if ( intersection.length > 0 ) {
-					const instanceId = intersection[ 0 ].instanceId;
-					currInstanceId = instanceId;
-					
-					voxel.setColorAt( currInstanceId, color.setHex( Math.random() * 0xffffff ) );
-					voxel.instanceColor.needsUpdate = true;
-
-				}
-
-				// populates GUI dynamically
-				if(oldId != currInstanceId){
-					if(cubeLine.length != 0){
-						for(let i = 0; i < cubeLine.length; i++){
-							gui.remove(cubeLine[i]);
-						}
-						cubeLine = [];
-					}
-					// console.log(Object.keys(commandLine[currInstanceId])[0] );
-					for(let i = 0; i < Object.keys(commandLine[currInstanceId]).length; i++){
-						// console.log(Object.keys(commandLine[currInstanceId])[i]);
-						cubeLine.push(gui.add( commandLine[currInstanceId], Object.keys(commandLine[currInstanceId])[i] ));
-					}
-					
-				}
-
-				
+          // console.log(keyValOfLine);
+          let key = [];
+          let value = [];
+          // make array of keys and array of value
+          for (let j = 0; j < keyValOfLine.length; j++) {
+            if (j % 2 == 0) {
+              key.push(keyValOfLine[j]);
+            } else if (j % 2 == 1) {
+              value.push(keyValOfLine[j]);
             }
-			
+          }
+          // console.log("KEY VAL");
+          // console.log(key);
+          // console.log(value);
 
-			// debugging function to prove that objects can be moved after creation
-			function moveObject() {
-				if(currInstanceId >= 0){
-					// moves position to random location
-					const matrix = new THREE.Matrix4();
-					matrix.setPosition( Math.random() * 100 - 50, Math.random() * 1, Math.random() * 100 - 50 )
-					voxel.setMatrixAt(currInstanceId, matrix)
-					voxel.instanceMatrix.needsUpdate = true;
-				}
-			}
+          let keyValObj = {};
+          for (let k = 0; k < key.length; k++) {
+            let keyStr = String(key[k]);
+            let valStr = String(value[k]);
+            keyValObj[keyStr] = valStr;
+          }
+          // console.log(keyValObj);
+          commandLine.push(keyValObj);
+        }
 
+        // console.log(commandLine);
 
-			function onWindowResize() {
-				camera.aspect = (window.innerWidth / window.innerHeight);
-				camera.updateProjectionMatrix();
-				renderer.setSize( window.innerWidth, window.innerHeight );
-			}
+        // console.log(position);
+        // console.log(tracker);
 
-			function animate() {
-				requestAnimationFrame( animate );
-				controls.update();
-				// raycaster.setFromCamera( mouse, camera );
+        spawnBoxes();
+      }
 
-				render();
-			}
+      function saveFile() {
+        let cleanText = "";
+        if (commandLine.length > 0) {
+          for (let i = 0; i < commandLine.length; i++) {
+            let str = JSON.stringify(commandLine[i]);
+            str = str.toString().replace(/{|\}|"/g, ""); // remove brackets
+            str = str.replace(/,|:/g, " "); //replace commas and colons with spaces
+            cleanText += str + "\n";
+            //console.log(str);
+          }
+          console.log(cleanText);
 
-			function render() {
-				renderer.render( scene, camera );
-			}
+          // Convert the text to BLOB object
+          const blob = new Blob([cleanText], { type: "text/plain" });
+          const sFileName = "scan_plan_1.txt"; // default file name
 
-		</script>
-	</body>
+          let newLink = document.createElement("a");
+          newLink.download = sFileName;
+
+          if (window.webkitURL != null) {
+            newLink.href = window.webkitURL.createObjectURL(blob);
+          } else {
+            newLink.href = window.URL.createObjectURL(blob);
+            newLink.style.display = "none";
+            document.body.appendChild(newLink);
+          }
+
+          newLink.click();
+        } else {
+          console.log("There are no commands to save.");
+        }
+      }
+
+      function init() {
+        camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          1,
+          100 * ENVIRONMENT_SCALE
+        );
+        camera.position.set(
+          5 * ENVIRONMENT_SCALE,
+          8 * ENVIRONMENT_SCALE,
+          13 * ENVIRONMENT_SCALE
+        );
+        camera.lookAt(0, 0, 0);
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+
+        // cubes
+        // cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
+        // const cubeGeo = new THREE.IcosahedronGeometry( 50, 3 );
+        // const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
+        // const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+        // voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
+        // matrix = new THREE.Matrix4();
+
+        // lighting for 3d objects
+        const light = new THREE.HemisphereLight(0xffffff, 0x888888);
+        light.position.set(0, 1, 0);
+        scene.add(light);
+
+        // grid
+        const gridHelper = new THREE.GridHelper(
+          9 * ENVIRONMENT_SCALE,
+          5 * ENVIRONMENT_SCALE
+        );
+        scene.add(gridHelper);
+
+        // push objects to plane of grid
+        const geometry = new THREE.PlaneGeometry(50, 50);
+        geometry.rotateX(-Math.PI / 2);
+        plane = new THREE.Mesh(
+          geometry,
+          new THREE.MeshBasicMaterial({ visible: false })
+        );
+        scene.add(plane);
+
+        //https://sbcode.net/threejs/dat-gui/
+        //https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
+
+        // gui
+        gui.add(params, "loadFile");
+        gui.add(params, "moveObject");
+        gui.add(params, "saveFile");
+
+        // render commands
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // perspective controls
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.enableZoom = true;
+        controls.enablePan = false;
+
+        // event listeners
+        window.addEventListener("resize", onWindowResize);
+        document.addEventListener("click", onClick);
+      }
+
+      function spawnBoxes() {
+        const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
+        const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+        voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
+        const matrix = new THREE.Matrix4();
+
+        // console.log(position);
+
+        //make random cubes <-- simulates input of coordinates
+        for (let i = 0; i < commandLine.length; i++) {
+          // console.log("XYZ");
+          // console.log(commandLine[i].x);
+          // console.log(commandLine[i].y);
+          // console.log(commandLine[i].z);
+          // matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
+          matrix.setPosition(
+            commandLine[i].x,
+            commandLine[i].y,
+            commandLine[i].z
+          );
+          voxel.setMatrixAt(objectIndex, matrix);
+          voxel.setColorAt(objectIndex, color);
+
+          objectIndex++;
+        }
+        scene.add(voxel);
+      }
+
+      function onClick(event) {
+        // event.preventDefault();
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        let oldId = currInstanceId;
+        const intersection = raycaster.intersectObject(voxel);
+        if (intersection.length > 0) {
+          const instanceId = intersection[0].instanceId;
+          currInstanceId = instanceId;
+
+          voxel.setColorAt(
+            currInstanceId,
+            color.setHex(Math.random() * 0xffffff)
+          );
+          voxel.instanceColor.needsUpdate = true;
+        }
+
+        // populates GUI dynamically
+        if (oldId != currInstanceId) {
+          if (cubeLine.length != 0) {
+            for (let i = 0; i < cubeLine.length; i++) {
+              gui.remove(cubeLine[i]);
+            }
+            cubeLine = [];
+          }
+          // console.log(Object.keys(commandLine[currInstanceId])[0] );
+          for (
+            let i = 0;
+            i < Object.keys(commandLine[currInstanceId]).length;
+            i++
+          ) {
+            // console.log(Object.keys(commandLine[currInstanceId])[i]);
+            cubeLine.push(
+              gui.add(
+                commandLine[currInstanceId],
+                Object.keys(commandLine[currInstanceId])[i]
+              )
+            );
+          }
+        }
+      }
+
+      // debugging function to prove that objects can be moved after creation
+      function moveObject() {
+        if (currInstanceId >= 0) {
+          // moves position to random location
+          const matrix = new THREE.Matrix4();
+          matrix.setPosition(
+            Math.random() * 100 - 50,
+            Math.random() * 1,
+            Math.random() * 100 - 50
+          );
+          voxel.setMatrixAt(currInstanceId, matrix);
+          voxel.instanceMatrix.needsUpdate = true;
+        }
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        // raycaster.setFromCamera( mouse, camera );
+
+        render();
+      }
+
+      function render() {
+        renderer.render(scene, camera);
+      }
+    </script>
+  </body>
 </html>

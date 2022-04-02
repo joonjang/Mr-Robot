@@ -77,25 +77,18 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         const fileList = event.target.files;
         var file = fileList[0];
 
-        // console.log(fileList);
-        // console.log(file.text());
-
         file.text().then(function (text) {
-          // console.log(text);
           parsePlots(text);
         });
       });
 
-      // todo: revise instruction line logic to key/value pairing for each array index
       function parsePlots(data) {
         console.log(data);
 
         let lines = data.split("\n");
-        // console.log(lines);
         for (let i = 0; i < lines.length; i++) {
-          let keyValOfLine = lines[i].split(" ");
+          let keyValOfLine = lines[i].split(/[ ]+/);
 
-          // console.log(keyValOfLine);
           let key = [];
           let value = [];
           // make array of keys and array of value
@@ -106,25 +99,15 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
               value.push(keyValOfLine[j]);
             }
           }
-          // console.log("KEY VAL");
-          // console.log(key);
-          // console.log(value);
-
+          //temp object of key: value to push to commandLine
           let keyValObj = {};
           for (let k = 0; k < key.length; k++) {
             let keyStr = String(key[k]);
             let valStr = String(value[k]);
             keyValObj[keyStr] = valStr;
           }
-          // console.log(keyValObj);
           commandLine.push(keyValObj);
         }
-
-        // console.log(commandLine);
-
-        // console.log(position);
-        // console.log(tracker);
-
         spawnBoxes();
       }
 
@@ -232,22 +215,15 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         document.addEventListener("click", onClick);
       }
 
+      // make cubes based off commandLine[] data
       function spawnBoxes() {
         const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
         const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
         voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
         const matrix = new THREE.Matrix4();
 
-        // console.log(position);
-
-        //make random cubes <-- simulates input of coordinates
         for (let i = 0; i < commandLine.length; i++) {
-          // console.log("XYZ");
-          // console.log(commandLine[i].x);
-          // console.log(commandLine[i].y);
-          // console.log(commandLine[i].z);
-          // matrix.setPosition( Math.random() * 1000 - 500, Math.random() * 100, Math.random() * 1000 - 500 );
-          matrix.setPosition(
+            matrix.setPosition(
             commandLine[i].x,
             commandLine[i].y,
             commandLine[i].z
@@ -260,6 +236,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         scene.add(voxel);
       }
 
+      // click cube to show property
       function onClick(event) {
         // event.preventDefault();
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -295,14 +272,26 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             i++
           ) {
             // console.log(Object.keys(commandLine[currInstanceId])[i]);
+
+            // https://jsfiddle.net/prisoner849/vj71p9f1/
+            // the logic that adds the key/value to dat.GUI
             cubeLine.push(
               gui.add(
                 commandLine[currInstanceId],
                 Object.keys(commandLine[currInstanceId])[i]
-              )
-            );
+              ).listen().onChange(function(val) {
+                propertyChange(Object.keys(commandLine[currInstanceId])[i], val);
+              }));
           }
         }
+      }
+
+      // function gets called everytime a control parameter gets changed
+      function propertyChange(key, value) {
+        console.log(key);
+        console.log(value);
+        commandLine[currInstanceId][key] = value;
+        moveObject();
       }
 
       // debugging function to prove that objects can be moved after creation
@@ -310,10 +299,11 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         if (currInstanceId >= 0) {
           // moves position to random location
           const matrix = new THREE.Matrix4();
+          
           matrix.setPosition(
-            Math.random() * 100 - 50,
-            Math.random() * 1,
-            Math.random() * 100 - 50
+            commandLine[currInstanceId]["x"],
+            commandLine[currInstanceId]["y"],
+            commandLine[currInstanceId]["z"]
           );
           voxel.setMatrixAt(currInstanceId, matrix);
           voxel.instanceMatrix.needsUpdate = true;

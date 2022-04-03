@@ -58,8 +58,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       let currInstanceId = -1;
       let cubeLine = [];
 
+      // loads name of file to this variable 
+      let fileName;
+
       const params = {
-        moveObject: moveObject,
         saveFile: saveFile,
         loadFile: function () {
           document.getElementById("file-selector").click();
@@ -76,7 +78,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       fileSelector.addEventListener("change", (event) => {
         const fileList = event.target.files;
         var file = fileList[0];
-
+        fileName = fileList[0].name;
         file.text().then(function (text) {
           parsePlots(text);
         });
@@ -125,10 +127,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
           // Convert the text to BLOB object
           const blob = new Blob([cleanText], { type: "text/plain" });
-          const sFileName = "scan_plan_1.txt"; // default file name
+          // const sFileName = "scan_plan_1.txt"; // default file name
 
           let newLink = document.createElement("a");
-          newLink.download = sFileName;
+          newLink.download = fileName;
 
           if (window.webkitURL != null) {
             newLink.href = window.webkitURL.createObjectURL(blob);
@@ -161,14 +163,6 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf0f0f0);
 
-        // cubes
-        // cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
-        // const cubeGeo = new THREE.IcosahedronGeometry( 50, 3 );
-        // const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
-        // const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
-        // voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
-        // matrix = new THREE.Matrix4();
-
         // lighting for 3d objects
         const light = new THREE.HemisphereLight(0xffffff, 0x888888);
         light.position.set(0, 1, 0);
@@ -194,9 +188,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         //https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
 
         // gui
-        gui.add(params, "loadFile");
-        gui.add(params, "moveObject");
-        gui.add(params, "saveFile");
+        gui.add(params, "loadFile").name("Load File");
+        gui.add(params, "saveFile").name("Save File");
 
         // render commands
         renderer = new THREE.WebGLRenderer({ antialias: true });

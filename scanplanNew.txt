@@ -1,4 +1,4 @@
-x 1.0 y 1.0 z 2.0 heading 3.5 elevator 300 pan 20 tilt -50 capture photo1.jpg
-heading 3.0 elevator 310 tilt -30 capture photo2.jpg x 25.0 y 2.0 z 15.5
-heading 4.0 x 8.0 y 3.0 z 25.5 pan 40 tilt -20 capture photo3.jpg
-x  10.0  y 4.0 z 4.5 heading 5.0 elevator 330 pan 50 tilt -10 capture photo4.jpg
+x 10.0 y 4.0 z 4.5 heading 5.0 elevator 6 pan 50 tilt -10 capture photo1.jpg
+x 1.0  y 6.0 z 10 heading 3.0 elevator 15 pan 180 tilt 0 capture photo2.jpg
+x 20.0 y 2.0 z 8.5 heading 10.0 elevator 10 pan 270 tilt -15
+x 15.5 y 4.0 z 2 heading 15.0 elevator 0 pan 0 tilt 10

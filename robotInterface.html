@@ -53,6 +53,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       THREE.Cache.enabled = true;
 
       let voxel;
+      let camVox;
       let objectIndex = 0;
       let transformControl;
       let currInstanceId = -1;
@@ -215,18 +216,31 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
         const matrix = new THREE.Matrix4();
 
-        for (let i = 0; i < commandLine.length; i++) {
-            matrix.setPosition(
-            commandLine[i].x,
-            commandLine[i].y,
-            commandLine[i].z
-          );
-          voxel.setMatrixAt(objectIndex, matrix);
-          voxel.setColorAt(objectIndex, color);
+        // camera object
+        const camGeo = new THREE.ConeGeometry(2, 4);
+        camGeo.rotateX(Math.PI/2);
+        const camMaterial = new THREE.MeshPhongMaterial({ color: 0xf9d71c });
+        camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
+        // camVox.rotateX(90);
 
+        for (let i = 0; i < commandLine.length; i++) {
+          matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
+          voxel.setMatrixAt(objectIndex, matrix);
+          camVox.setMatrixAt(objectIndex, matrix)
+
+          camVox.position.z = -3;
+          
+          
+          // set box color based if it takes pictures or not
+          if(typeof commandLine[i].capture == 'string'){
+            voxel.setColorAt(objectIndex, color.setHex(0x64ae64));
+          } else {
+            voxel.setColorAt(objectIndex, color.setHex(0xD3D3D3));
+          }
           objectIndex++;
         }
         scene.add(voxel);
+        scene.add(camVox);
       }
 
       // click cube to show property
@@ -242,11 +256,24 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         if (intersection.length > 0) {
           const instanceId = intersection[0].instanceId;
           currInstanceId = instanceId;
-
+          
+          // set old object to default color  
+          if(oldId != currInstanceId && oldId != -1 ){
+            if(typeof commandLine[oldId].capture == 'string' ){
+              // console.log("set greeen");
+              voxel.setColorAt(oldId, color.setHex(0x64ae64));
+            } else {
+              // console.log("set grey");
+              voxel.setColorAt(oldId, color.setHex(0xD3D3D3));
+            }
+          }
+          
+          // change color of selected item
           voxel.setColorAt(
             currInstanceId,
-            color.setHex(Math.random() * 0xffffff)
+            color.setHex(0xffffff)
           );
+          
           voxel.instanceColor.needsUpdate = true;
         }
 

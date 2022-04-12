@@ -49,20 +49,19 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       const gui = new GUI();
 
       const loader = new THREE.FileLoader();
+      const worldZero = new THREE.Vector3();
 
       THREE.Cache.enabled = true;
 
       let voxel;
-      let camVox;
       let objectIndex = 0;
       let transformControl;
       let currInstanceId = -1;
       let cubeLine = [];
-
-      // loads name of file to this variable 
-      let fileName;
+      let voxels = [];
 
       const params = {
+        moveObject: moveObject,
         saveFile: saveFile,
         loadFile: function () {
           document.getElementById("file-selector").click();
@@ -79,7 +78,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       fileSelector.addEventListener("change", (event) => {
         const fileList = event.target.files;
         var file = fileList[0];
-        fileName = fileList[0].name;
+
         file.text().then(function (text) {
           parsePlots(text);
         });
@@ -128,10 +127,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
           // Convert the text to BLOB object
           const blob = new Blob([cleanText], { type: "text/plain" });
-          // const sFileName = "scan_plan_1.txt"; // default file name
+          const sFileName = "scan_plan_1.txt"; // default file name
 
           let newLink = document.createElement("a");
-          newLink.download = fileName;
+          newLink.download = sFileName;
 
           if (window.webkitURL != null) {
             newLink.href = window.webkitURL.createObjectURL(blob);
@@ -164,6 +163,14 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0xf0f0f0);
 
+        // cubes
+        // cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, map: new THREE.TextureLoader().load( 'textures/square-outline-textured.png' ) } );
+        // const cubeGeo = new THREE.IcosahedronGeometry( 50, 3 );
+        // const cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
+        // const cubeMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+        // voxel = new THREE.InstancedMesh( cubeGeo, cubeMaterial, count );
+        // matrix = new THREE.Matrix4();
+
         // lighting for 3d objects
         const light = new THREE.HemisphereLight(0xffffff, 0x888888);
         light.position.set(0, 1, 0);
@@ -189,8 +196,9 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         //https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
 
         // gui
-        gui.add(params, "loadFile").name("Load File");
-        gui.add(params, "saveFile").name("Save File");
+        gui.add(params, "loadFile");
+        gui.add(params, "moveObject");
+        gui.add(params, "saveFile");
 
         // render commands
         renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -213,34 +221,39 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       function spawnBoxes() {
         const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
         const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
+
         const matrix = new THREE.Matrix4();
 
-        // camera object
-        const camGeo = new THREE.ConeGeometry(2, 4);
-        camGeo.rotateX(Math.PI/2);
-        const camMaterial = new THREE.MeshPhongMaterial({ color: 0xf9d71c });
-        camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
-        // camVox.rotateX(90);
-
         for (let i = 0; i < commandLine.length; i++) {
-          matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
-          voxel.setMatrixAt(objectIndex, matrix);
-          camVox.setMatrixAt(objectIndex, matrix)
+          voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
+          voxels.push(voxel);
 
-          camVox.position.z = -3;
-          
-          
-          // set box color based if it takes pictures or not
-          if(typeof commandLine[i].capture == 'string'){
-            voxel.setColorAt(objectIndex, color.setHex(0x64ae64));
+          matrix.setPosition(
+            commandLine[i].x,
+            commandLine[i].y,
+            commandLine[i].z
+          );
+          voxels[i].setColorAt(objectIndex, color);
+          voxels[i].setMatrixAt(objectIndex, matrix);
+          if(commandLine[i].tilt == undefined) {
+              voxels[i].rotation.x = 0;
           } else {
-            voxel.setColorAt(objectIndex, color.setHex(0xD3D3D3));
+              voxels[i].rotation.x = THREE.Math.degToRad(
+                parseFloat(commandLine[i].tilt)
+              );
           }
-          objectIndex++;
+          if(commandLine[i].pan == undefined) {
+              voxels[i].rotation.y = 0;
+          } else {
+          voxels[i].rotation.y = THREE.Math.degToRad(
+            parseFloat(commandLine[i].pan)
+          );
         }
-        scene.add(voxel);
-        scene.add(camVox);
+          //voxels[objectIndex].rotation
+          objectIndex++;
+          scene.add(voxels[i]);
+          console.log(voxels[i].rotation);
+        }
       }
 
       // click cube to show property
@@ -252,29 +265,16 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         raycaster.setFromCamera(mouse, camera);
 
         let oldId = currInstanceId;
-        const intersection = raycaster.intersectObject(voxel);
+        const intersection = raycaster.intersectObjects(voxels);
         if (intersection.length > 0) {
           const instanceId = intersection[0].instanceId;
           currInstanceId = instanceId;
-          
-          // set old object to default color  
-          if(oldId != currInstanceId && oldId != -1 ){
-            if(typeof commandLine[oldId].capture == 'string' ){
-              // console.log("set greeen");
-              voxel.setColorAt(oldId, color.setHex(0x64ae64));
-            } else {
-              // console.log("set grey");
-              voxel.setColorAt(oldId, color.setHex(0xD3D3D3));
-            }
-          }
-          
-          // change color of selected item
-          voxel.setColorAt(
+
+          voxels[currInstanceId].setColorAt(
             currInstanceId,
-            color.setHex(0xffffff)
+            color.setHex(Math.random() * 0xffffff)
           );
-          
-          voxel.instanceColor.needsUpdate = true;
+          voxels[currInstanceId].instanceColor.needsUpdate = true;
         }
 
         // populates GUI dynamically
@@ -296,21 +296,29 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             // https://jsfiddle.net/prisoner849/vj71p9f1/
             // the logic that adds the key/value to dat.GUI
             cubeLine.push(
-              gui.add(
-                commandLine[currInstanceId],
-                Object.keys(commandLine[currInstanceId])[i]
-              ).listen().onChange(function(val) {
-                propertyChange(Object.keys(commandLine[currInstanceId])[i], val);
-              }));
+              gui
+                .add(
+                  commandLine[currInstanceId],
+                  Object.keys(commandLine[currInstanceId])[i]
+                )
+                .listen()
+                .onChange(function (val) {
+                  propertyChange(
+                    Object.keys(commandLine[currInstanceId])[i],
+                    val
+                  );
+                })
+            );
           }
         }
       }
 
       // function gets called everytime a control parameter gets changed
       function propertyChange(key, value) {
-        console.log(key);
-        console.log(value);
+        //console.log(key);
+        //console.log(value);
         commandLine[currInstanceId][key] = value;
+        console.log(currInstanceId);
         moveObject();
       }
 
@@ -319,14 +327,16 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         if (currInstanceId >= 0) {
           // moves position to random location
           const matrix = new THREE.Matrix4();
-          
+
           matrix.setPosition(
             commandLine[currInstanceId]["x"],
             commandLine[currInstanceId]["y"],
             commandLine[currInstanceId]["z"]
           );
-          voxel.setMatrixAt(currInstanceId, matrix);
-          voxel.instanceMatrix.needsUpdate = true;
+          voxels[currInstanceId].setMatrixAt(currInstanceId, matrix);
+          voxels[currInstanceId].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId]["tilt"]));
+          voxels[currInstanceId].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId]["pan"]));
+          voxels[currInstanceId].instanceMatrix.needsUpdate = true;
         }
       }
 
@@ -338,6 +348,10 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
       function animate() {
         requestAnimationFrame(animate);
+        // if(voxels.length > 0) {
+        //     voxels[1].lookAt(worldZero)
+        //     voxels[1].rotation.x += 0.01;
+        // }
         controls.update();
         // raycaster.setFromCamera( mouse, camera );
 

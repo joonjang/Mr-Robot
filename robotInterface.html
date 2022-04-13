@@ -58,6 +58,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       let transformControl;
       let currInstanceId = -1;
       let cubeLine = [];
+      let voxels = [];
 
       // loads name of file to this variable 
       let fileName;
@@ -213,34 +214,54 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       function spawnBoxes() {
         const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
         const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
         const matrix = new THREE.Matrix4();
 
-        // camera object
-        const camGeo = new THREE.ConeGeometry(2, 4);
-        camGeo.rotateX(Math.PI/2);
-        const camMaterial = new THREE.MeshPhongMaterial({ color: 0xf9d71c });
-        camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
+        // // camera object
+        // const camGeo = new THREE.ConeGeometry(2, 4);
+        // camGeo.rotateX(Math.PI/2);
+        // const camMaterial = new THREE.MeshPhongMaterial({ color: 0xf9d71c });
+        // camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
         // camVox.rotateX(90);
 
-        for (let i = 0; i < commandLine.length; i++) {
-          matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
-          voxel.setMatrixAt(objectIndex, matrix);
-          camVox.setMatrixAt(objectIndex, matrix)
 
-          camVox.position.z = -3;
+
+
+
+        for (let i = 0; i < commandLine.length; i++) {
+          voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
+          voxels.push(voxel);
+          
+          matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
+          voxels[i].setMatrixAt(objectIndex, matrix);
+
+          // camVox.setMatrixAt(objectIndex, matrix)
+
+          // camVox.position.z = -3;
           
           
           // set box color based if it takes pictures or not
           if(typeof commandLine[i].capture == 'string'){
-            voxel.setColorAt(objectIndex, color.setHex(0x64ae64));
+            voxels[i].setColorAt(objectIndex, color.setHex(0x64ae64));
           } else {
-            voxel.setColorAt(objectIndex, color.setHex(0xD3D3D3));
+            voxels[i].setColorAt(objectIndex, color.setHex(0xD3D3D3));
           }
+
+          if(commandLine[i].tilt == undefined) {
+              voxels[i].rotation.x = 0;
+          } else {
+              voxels[i].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[i].tilt));
+          }
+          if(commandLine[i].pan == undefined) {
+              voxels[i].rotation.y = 0;
+          } else {
+            voxels[i].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[i].pan));
+          }
+
+          scene.add(voxels[i]);
           objectIndex++;
         }
-        scene.add(voxel);
-        scene.add(camVox);
+        
+        // scene.add(camVox);
       }
 
       // click cube to show property
@@ -252,29 +273,34 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         raycaster.setFromCamera(mouse, camera);
 
         let oldId = currInstanceId;
-        const intersection = raycaster.intersectObject(voxel);
+        const intersection = raycaster.intersectObjects(voxels);
         if (intersection.length > 0) {
           const instanceId = intersection[0].instanceId;
           currInstanceId = instanceId;
           
           // set old object to default color  
-          if(oldId != currInstanceId && oldId != -1 ){
-            if(typeof commandLine[oldId].capture == 'string' ){
-              // console.log("set greeen");
-              voxel.setColorAt(oldId, color.setHex(0x64ae64));
-            } else {
-              // console.log("set grey");
-              voxel.setColorAt(oldId, color.setHex(0xD3D3D3));
+          if(oldId != currInstanceId || oldId != -1 ){
+            try{
+              if(typeof commandLine[oldId].capture != null ){
+                // console.log("set greeen");
+                voxels[oldId].setColorAt(oldId, color.setHex(0x64ae64));
+              } else {
+                // console.log("set grey");
+                voxels[oldId].setColorAt(oldId, color.setHex(0xD3D3D3));
+              }
+            } catch (error) {
+              console.log(error);
             }
           }
           
           // change color of selected item
-          voxel.setColorAt(
+          voxels[currInstanceId].setColorAt(
             currInstanceId,
             color.setHex(0xffffff)
           );
           
-          voxel.instanceColor.needsUpdate = true;
+          voxels[oldId].instanceColor.needsUpdate = true;
+          voxels[currInstanceId].instanceColor.needsUpdate = true;
         }
 
         // populates GUI dynamically
@@ -314,7 +340,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         moveObject();
       }
 
-      // debugging function to prove that objects can be moved after creation
+
       function moveObject() {
         if (currInstanceId >= 0) {
           // moves position to random location
@@ -325,8 +351,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             commandLine[currInstanceId]["y"],
             commandLine[currInstanceId]["z"]
           );
-          voxel.setMatrixAt(currInstanceId, matrix);
-          voxel.instanceMatrix.needsUpdate = true;
+          voxels[currInstanceId].setMatrixAt(currInstanceId, matrix);
+          voxels[currInstanceId].instanceMatrix.needsUpdate = true;
         }
       }
 

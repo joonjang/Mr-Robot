@@ -223,10 +223,6 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         // camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
         // camVox.rotateX(90);
 
-
-
-
-
         for (let i = 0; i < commandLine.length; i++) {
           voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
           voxels.push(voxel);
@@ -235,9 +231,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
           voxels[i].setMatrixAt(objectIndex, matrix);
 
           // camVox.setMatrixAt(objectIndex, matrix)
-
           // camVox.position.z = -3;
-          
           
           // set box color based if it takes pictures or not
           if(typeof commandLine[i].capture == 'string'){
@@ -246,6 +240,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             voxels[i].setColorAt(objectIndex, color.setHex(0xD3D3D3));
           }
 
+          // set object rotation and orientation angles
           if(commandLine[i].tilt == undefined) {
               voxels[i].rotation.x = 0;
           } else {
@@ -281,15 +276,25 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
           // set old object to default color  
           if(oldId != currInstanceId || oldId != -1 ){
             try{
-              if(typeof commandLine[oldId].capture != null ){
+              if(typeof commandLine[oldId].capture == 'string' ){
                 // console.log("set greeen");
                 voxels[oldId].setColorAt(oldId, color.setHex(0x64ae64));
               } else {
                 // console.log("set grey");
                 voxels[oldId].setColorAt(oldId, color.setHex(0xD3D3D3));
               }
+
+              voxels[oldId].instanceColor.needsUpdate = true;
             } catch (error) {
-              console.log(error);
+              // console.log("--Error--")
+              // console.error(error);
+              // console.log("---------")
+
+              // First click triggers an error due to, "TypeError: undefined is not an object
+              // (evaluating commandLine[oldId].capture)". Problem started occuring after the
+              // code "const intersection = raycaster.intersectObject(voxel);" was changed to
+              // "const intersection = raycaster.intersectObjects(voxels);". I suspect that it 
+              // may be because the new intersection property illicits a double-click-like input
             }
           }
           
@@ -299,7 +304,6 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             color.setHex(0xffffff)
           );
           
-          voxels[oldId].instanceColor.needsUpdate = true;
           voxels[currInstanceId].instanceColor.needsUpdate = true;
         }
 
@@ -352,6 +356,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
             commandLine[currInstanceId]["z"]
           );
           voxels[currInstanceId].setMatrixAt(currInstanceId, matrix);
+          voxels[currInstanceId].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].tilt));
+          voxels[currInstanceId].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].pan));
           voxels[currInstanceId].instanceMatrix.needsUpdate = true;
         }
       }

@@ -8,22 +8,19 @@ https://jasonchen1982.github.io/three.interaction.js/examples/interaction/
 https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/interaction/index.html
 -->
 <html lang="en">
-  <head>
-    <title>R O B O T</title>
-    <meta charset="utf-8" />
-  </head>
-  <body>
-    <!-- https://stackoverflow.com/questions/23417991/load-a-file-using-a-dat-gui-button -->
-    <input
-      type="file"
-      id="file-selector"
-      accept="text/plain"
-      style="visibility: hidden; display: block; height: 0"
-    />
 
-    <script async src="js/es-module-shims.js"></script>
+<head>
+  <title>R O B O T</title>
+  <meta charset="utf-8" />
+</head>
 
-    <script type="importmap">
+<body>
+  <!-- https://stackoverflow.com/questions/23417991/load-a-file-using-a-dat-gui-button -->
+  <input type="file" id="file-selector" accept="text/plain" style="visibility: hidden; display: block; height: 0" />
+
+  <script async src="js/es-module-shims.js"></script>
+
+  <script type="importmap">
       {
         "imports": {
           "three": "../build/three.module.js"
@@ -31,354 +28,351 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
       }
     </script>
 
-    <script type="module">
-      import * as THREE from "three";
-      import { OrbitControls } from "./js/OrbitControls.js";
-      import { GUI } from "./js/datjs/dat.gui.module.js";
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "./js/OrbitControls.js";
+    import { GUI } from "./js/datjs/dat.gui.module.js";
 
-      const ENVIRONMENT_SCALE = 10;
+    const ENVIRONMENT_SCALE = 10;
 
-      let camera, scene, renderer, controls, plane;
-      const raycaster = new THREE.Raycaster();
+    let camera, scene, renderer, controls, plane;
+    const raycaster = new THREE.Raycaster();
 
-      const mouse = new THREE.Vector2();
-      const amount = parseInt(window.location.search.substr(1)) || 10;
-      const count = Math.pow(amount, 3);
-      const color = new THREE.Color();
-      const commandLine = [];
-      const gui = new GUI();
+    const mouse = new THREE.Vector2();
+    const amount = parseInt(window.location.search.substr(1)) || 10;
+    const count = Math.pow(amount, 3);
+    const color = new THREE.Color();
+    const commandLine = [];
+    const gui = new GUI();
 
-      const loader = new THREE.FileLoader();
+    const loader = new THREE.FileLoader();
 
-      THREE.Cache.enabled = true;
+    THREE.Cache.enabled = true;
 
-      let voxel;
-      let camVox;
-      let objectIndex = 0;
-      let transformControl;
-      let currInstanceId = -1;
-      let cubeLine = [];
-      let voxels = [];
+    let voxel;
+    let camVox;
+    let objectIndex = 0;
+    let transformControl;
+    let currInstanceId = -1;
+    let cubeLine = [];
+    let voxels = [];
 
-      // loads name of file to this variable 
-      let fileName;
+    // loads name of file to this variable 
+    let fileName;
 
-      const params = {
-        saveFile: saveFile,
-        loadFile: function () {
-          document.getElementById("file-selector").click();
-        },
-      };
+    const params = {
+      saveFile: saveFile,
+      loadFile: function () {
+        document.getElementById("file-selector").click();
+      },
+    };
 
-      init();
-      animate();
+    init();
+    animate();
 
-      //https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications
-      //https://developer.mozilla.org/en-US/docs/Web/API/File
-      //https://developer.mozilla.org/en-US/docs/Web/API/Blob/text
-      const fileSelector = document.getElementById("file-selector");
-      fileSelector.addEventListener("change", (event) => {
-        const fileList = event.target.files;
-        var file = fileList[0];
-        fileName = fileList[0].name;
-        file.text().then(function (text) {
-          parsePlots(text);
-        });
+    //https://developer.mozilla.org/en-US/docs/Web/API/File/Using_files_from_web_applications
+    //https://developer.mozilla.org/en-US/docs/Web/API/File
+    //https://developer.mozilla.org/en-US/docs/Web/API/Blob/text
+    const fileSelector = document.getElementById("file-selector");
+    fileSelector.addEventListener("change", (event) => {
+      const fileList = event.target.files;
+      var file = fileList[0];
+      fileName = fileList[0].name;
+      file.text().then(function (text) {
+        parsePlots(text);
       });
+    });
 
-      function parsePlots(data) {
-        console.log(data);
+    function parsePlots(data) {
+      console.log(data);
 
-        let lines = data.split("\n");
-        for (let i = 0; i < lines.length; i++) {
-          let keyValOfLine = lines[i].split(/[ ]+/);
+      let lines = data.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        let keyValOfLine = lines[i].split(/[ ]+/);
 
-          let key = [];
-          let value = [];
-          // make array of keys and array of value
-          for (let j = 0; j < keyValOfLine.length; j++) {
-            if (j % 2 == 0) {
-              key.push(keyValOfLine[j]);
-            } else if (j % 2 == 1) {
-              value.push(keyValOfLine[j]);
-            }
+        let key = [];
+        let value = [];
+        // make array of keys and array of value
+        for (let j = 0; j < keyValOfLine.length; j++) {
+          if (j % 2 == 0) {
+            key.push(keyValOfLine[j]);
+          } else if (j % 2 == 1) {
+            value.push(keyValOfLine[j]);
           }
-          //temp object of key: value to push to commandLine
-          let keyValObj = {};
-          for (let k = 0; k < key.length; k++) {
-            let keyStr = String(key[k]);
-            let valStr = String(value[k]);
-            keyValObj[keyStr] = valStr;
-          }
-          commandLine.push(keyValObj);
         }
-        spawnBoxes();
-      }
-
-      function saveFile() {
-        let cleanText = "";
-        if (commandLine.length > 0) {
-          for (let i = 0; i < commandLine.length; i++) {
-            let str = JSON.stringify(commandLine[i]);
-            str = str.toString().replace(/{|\}|"/g, ""); // remove brackets
-            str = str.replace(/,|:/g, " "); //replace commas and colons with spaces
-            cleanText += str + "\n";
-            //console.log(str);
-          }
-          //console.log(cleanText);
-
-          // Convert the text to BLOB object
-          const blob = new Blob([cleanText], { type: "text/plain" });
-          // const sFileName = "scan_plan_1.txt"; // default file name
-
-          let newLink = document.createElement("a");
-          newLink.download = fileName;
-
-          if (window.webkitURL != null) {
-            newLink.href = window.webkitURL.createObjectURL(blob);
-          } else {
-            newLink.href = window.URL.createObjectURL(blob);
-            newLink.style.display = "none";
-            document.body.appendChild(newLink);
-          }
-
-          newLink.click();
-        } else {
-          console.log("There are no commands to save.");
+        //temp object of key: value to push to commandLine
+        let keyValObj = {};
+        for (let k = 0; k < key.length; k++) {
+          let keyStr = String(key[k]);
+          let valStr = String(value[k]);
+          keyValObj[keyStr] = valStr;
         }
+        commandLine.push(keyValObj);
       }
+      spawnBoxes();
+    }
 
-      function init() {
-        camera = new THREE.PerspectiveCamera(
-          45,
-          window.innerWidth / window.innerHeight,
-          1,
-          100 * ENVIRONMENT_SCALE
-        );
-        camera.position.set(
-          5 * ENVIRONMENT_SCALE,
-          8 * ENVIRONMENT_SCALE,
-          13 * ENVIRONMENT_SCALE
-        );
-        camera.lookAt(0, 0, 0);
-
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf0f0f0);
-
-        // lighting for 3d objects
-        const light = new THREE.HemisphereLight(0xffffff, 0x888888);
-        light.position.set(0, 1, 0);
-        scene.add(light);
-
-        // grid
-        const gridHelper = new THREE.GridHelper(
-          9 * ENVIRONMENT_SCALE,
-          5 * ENVIRONMENT_SCALE
-        );
-        scene.add(gridHelper);
-
-        // push objects to plane of grid
-        const geometry = new THREE.PlaneGeometry(50, 50);
-        geometry.rotateX(-Math.PI / 2);
-        plane = new THREE.Mesh(
-          geometry,
-          new THREE.MeshBasicMaterial({ visible: false })
-        );
-        scene.add(plane);
-
-        //https://sbcode.net/threejs/dat-gui/
-        //https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
-
-        // gui
-        gui.add(params, "loadFile").name("Load File");
-        gui.add(params, "saveFile").name("Save File");
-
-        // render commands
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // perspective controls
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.enableZoom = true;
-        controls.enablePan = false;
-
-        // event listeners
-        window.addEventListener("resize", onWindowResize);
-        document.addEventListener("click", onClick);
-      }
-
-      // make cubes based off commandLine[] data
-      function spawnBoxes() {
-        const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
-        const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
-        const matrix = new THREE.Matrix4();
-
-        // // camera object
-        // const camGeo = new THREE.ConeGeometry(2, 4);
-        // camGeo.rotateX(Math.PI/2);
-        // const camMaterial = new THREE.MeshPhongMaterial({ color: 0xf9d71c });
-        // camVox = new THREE.InstancedMesh(camGeo, camMaterial, count);
-        // camVox.rotateX(90);
-
+    function saveFile() {
+      let cleanText = "";
+      if (commandLine.length > 0) {
         for (let i = 0; i < commandLine.length; i++) {
+          let str = JSON.stringify(commandLine[i]);
+          str = str.toString().replace(/{|\}|"/g, ""); // remove brackets
+          str = str.replace(/,|:/g, " "); //replace commas and colons with spaces
+          cleanText += str + "\n";
+          //console.log(str);
+        }
+        //console.log(cleanText);
+
+        // Convert the text to BLOB object
+        const blob = new Blob([cleanText], { type: "text/plain" });
+        // const sFileName = "scan_plan_1.txt"; // default file name
+
+        let newLink = document.createElement("a");
+        newLink.download = fileName;
+
+        if (window.webkitURL != null) {
+          newLink.href = window.webkitURL.createObjectURL(blob);
+        } else {
+          newLink.href = window.URL.createObjectURL(blob);
+          newLink.style.display = "none";
+          document.body.appendChild(newLink);
+        }
+
+        newLink.click();
+      } else {
+        console.log("There are no commands to save.");
+      }
+    }
+
+    function init() {
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        1,
+        100 * ENVIRONMENT_SCALE
+      );
+      camera.position.set(
+        5 * ENVIRONMENT_SCALE,
+        8 * ENVIRONMENT_SCALE,
+        13 * ENVIRONMENT_SCALE
+      );
+      camera.lookAt(0, 0, 0);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf0f0f0);
+
+      // lighting for 3d objects
+      const light = new THREE.HemisphereLight(0xffffff, 0x888888);
+      light.position.set(0, 1, 0);
+      scene.add(light);
+
+      // grid
+      const gridHelper = new THREE.GridHelper(
+        9 * ENVIRONMENT_SCALE,
+        5 * ENVIRONMENT_SCALE
+      );
+      scene.add(gridHelper);
+
+      // push objects to plane of grid
+      const geometry = new THREE.PlaneGeometry(50, 50);
+      geometry.rotateX(-Math.PI / 2);
+      plane = new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({ visible: false })
+      );
+      scene.add(plane);
+
+      //https://sbcode.net/threejs/dat-gui/
+      //https://codepen.io/prisoner849/pen/qQEwyO?editors=0010
+
+      // gui
+      gui.add(params, "loadFile").name("Load File");
+      gui.add(params, "saveFile").name("Save File");
+
+      // render commands
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // perspective controls
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.enableZoom = true;
+      controls.enablePan = false;
+
+      // event listeners
+      window.addEventListener("resize", onWindowResize);
+      document.addEventListener("click", onClick);
+    }
+
+    // make cubes based off commandLine[] data
+    function spawnBoxes() {
+      const cubeGeo = new THREE.BoxGeometry(3, 3, 3);
+      const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+      const matrix = new THREE.Matrix4();
+
+      // cone object
+      const camGeo = new THREE.ConeGeometry(2, 4);
+      camGeo.rotateX(Math.PI / 2);
+
+      for (let i = 0; i < commandLine.length; i++) {
+
+        // set object to cone+green if capturing, else cube+grey
+        if (typeof commandLine[i].capture == 'string') {
+          voxel = new THREE.InstancedMesh(camGeo, cubeMaterial, count);
+          voxels.push(voxel);
+          voxels[i].setColorAt(objectIndex, color.setHex(0x64ae64));
+        } else {
           voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
           voxels.push(voxel);
-          
-          matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
-          voxels[i].setMatrixAt(objectIndex, matrix);
-
-          // camVox.setMatrixAt(objectIndex, matrix)
-          // camVox.position.z = -3;
-          
-          // set box color based if it takes pictures or not
-          if(typeof commandLine[i].capture == 'string'){
-            voxels[i].setColorAt(objectIndex, color.setHex(0x64ae64));
-          } else {
-            voxels[i].setColorAt(objectIndex, color.setHex(0xD3D3D3));
-          }
-
-          // set object rotation and orientation angles
-          if(commandLine[i].tilt == undefined) {
-              voxels[i].rotation.x = 0;
-          } else {
-              voxels[i].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[i].tilt));
-          }
-          if(commandLine[i].pan == undefined) {
-              voxels[i].rotation.y = 0;
-          } else {
-            voxels[i].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[i].pan));
-          }
-
-          scene.add(voxels[i]);
-          objectIndex++;
+          voxels[i].setColorAt(objectIndex, color.setHex(0xD3D3D3));
         }
-        
-        // scene.add(camVox);
+
+        matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
+        voxels[i].setMatrixAt(objectIndex, matrix);
+
+
+        // set object rotation and orientation angles
+        if (commandLine[i].tilt == undefined) {
+          voxels[i].rotation.x = 0;
+        } else {
+          voxels[i].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[i].tilt));
+        }
+        if (commandLine[i].pan == undefined) {
+          voxels[i].rotation.y = 0;
+        } else {
+          voxels[i].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[i].pan));
+        }
+
+        scene.add(voxels[i]);
+        objectIndex++;
       }
 
-      // click cube to show property
-      function onClick(event) {
-        // event.preventDefault();
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      // scene.add(camVox);
+    }
 
-        raycaster.setFromCamera(mouse, camera);
+    // click cube to show property
+    function onClick(event) {
+      // event.preventDefault();
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-        let oldId = currInstanceId;
-        const intersection = raycaster.intersectObjects(voxels);
-        if (intersection.length > 0) {
-          const instanceId = intersection[0].instanceId;
-          currInstanceId = instanceId;
-          
-          // set old object to default color  
-          if(oldId != currInstanceId || oldId != -1 ){
-            try{
-              if(typeof commandLine[oldId].capture == 'string' ){
-                // console.log("set greeen");
-                voxels[oldId].setColorAt(oldId, color.setHex(0x64ae64));
-              } else {
-                // console.log("set grey");
-                voxels[oldId].setColorAt(oldId, color.setHex(0xD3D3D3));
-              }
+      raycaster.setFromCamera(mouse, camera);
 
-              voxels[oldId].instanceColor.needsUpdate = true;
-            } catch (error) {
-              // console.log("--Error--")
-              // console.error(error);
-              // console.log("---------")
+      let oldId = currInstanceId;
+      const intersection = raycaster.intersectObjects(voxels);
+      if (intersection.length > 0) {
+        const instanceId = intersection[0].instanceId;
+        currInstanceId = instanceId;
 
-              // First click triggers an error due to, "TypeError: undefined is not an object
-              // (evaluating commandLine[oldId].capture)". Problem started occuring after the
-              // code "const intersection = raycaster.intersectObject(voxel);" was changed to
-              // "const intersection = raycaster.intersectObjects(voxels);". I suspect that it 
-              // may be because the new intersection property illicits a double-click-like input
+        // set old object to default color  
+        if (oldId != currInstanceId || oldId != -1) {
+          try {
+            if (typeof commandLine[oldId].capture == 'string') {
+              // console.log("set greeen");
+              voxels[oldId].setColorAt(oldId, color.setHex(0x64ae64));
+            } else {
+              // console.log("set grey");
+              voxels[oldId].setColorAt(oldId, color.setHex(0xD3D3D3));
             }
-          }
-          
-          // change color of selected item
-          voxels[currInstanceId].setColorAt(
-            currInstanceId,
-            color.setHex(0xffffff)
-          );
-          
-          voxels[currInstanceId].instanceColor.needsUpdate = true;
-        }
 
-        // populates GUI dynamically
-        if (oldId != currInstanceId) {
-          if (cubeLine.length != 0) {
-            for (let i = 0; i < cubeLine.length; i++) {
-              gui.remove(cubeLine[i]);
-            }
-            cubeLine = [];
-          }
-          // console.log(Object.keys(commandLine[currInstanceId])[0] );
-          for (
-            let i = 0;
-            i < Object.keys(commandLine[currInstanceId]).length;
-            i++
-          ) {
-            // console.log(Object.keys(commandLine[currInstanceId])[i]);
+            voxels[oldId].instanceColor.needsUpdate = true;
+          } catch (error) {
+            // console.log("--Error--")
+            // console.error(error);
+            // console.log("---------")
 
-            // https://jsfiddle.net/prisoner849/vj71p9f1/
-            // the logic that adds the key/value to dat.GUI
-            cubeLine.push(
-              gui.add(
-                commandLine[currInstanceId],
-                Object.keys(commandLine[currInstanceId])[i]
-              ).listen().onChange(function(val) {
-                propertyChange(Object.keys(commandLine[currInstanceId])[i], val);
-              }));
+            // First click triggers an error due to, "TypeError: undefined is not an object
+            // (evaluating commandLine[oldId].capture)". Problem started occuring after the
+            // code "const intersection = raycaster.intersectObject(voxel);" was changed to
+            // "const intersection = raycaster.intersectObjects(voxels);". I suspect that it 
+            // may be because the new intersection property illicits a double-click-like input
           }
         }
+
+        // change color of selected item
+        voxels[currInstanceId].setColorAt(
+          currInstanceId,
+          color.setHex(0xFFBF00)
+        );
+
+        voxels[currInstanceId].instanceColor.needsUpdate = true;
       }
 
-      // function gets called everytime a control parameter gets changed
-      function propertyChange(key, value) {
-        console.log(key);
-        console.log(value);
-        commandLine[currInstanceId][key] = value;
-        moveObject();
-      }
+      // populates GUI dynamically
+      if (oldId != currInstanceId) {
+        if (cubeLine.length != 0) {
+          for (let i = 0; i < cubeLine.length; i++) {
+            gui.remove(cubeLine[i]);
+          }
+          cubeLine = [];
+        }
+        // console.log(Object.keys(commandLine[currInstanceId])[0] );
+        for (
+          let i = 0;
+          i < Object.keys(commandLine[currInstanceId]).length;
+          i++
+        ) {
+          // console.log(Object.keys(commandLine[currInstanceId])[i]);
 
-
-      function moveObject() {
-        if (currInstanceId >= 0) {
-          // moves position to random location
-          const matrix = new THREE.Matrix4();
-          
-          matrix.setPosition(
-            commandLine[currInstanceId]["x"],
-            commandLine[currInstanceId]["y"],
-            commandLine[currInstanceId]["z"]
-          );
-          voxels[currInstanceId].setMatrixAt(currInstanceId, matrix);
-          voxels[currInstanceId].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].tilt));
-          voxels[currInstanceId].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].pan));
-          voxels[currInstanceId].instanceMatrix.needsUpdate = true;
+          // https://jsfiddle.net/prisoner849/vj71p9f1/
+          // the logic that adds the key/value to dat.GUI
+          cubeLine.push(
+            gui.add(
+              commandLine[currInstanceId],
+              Object.keys(commandLine[currInstanceId])[i]
+            ).listen().onChange(function (val) {
+              propertyChange(Object.keys(commandLine[currInstanceId])[i], val);
+            }));
         }
       }
+    }
 
-      function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+    // function gets called everytime a control parameter gets changed
+    function propertyChange(key, value) {
+      console.log(key);
+      console.log(value);
+      commandLine[currInstanceId][key] = value;
+      moveObject();
+    }
+
+    function moveObject() {
+      if (currInstanceId >= 0) {
+        // moves position to random location
+        const matrix = new THREE.Matrix4();
+
+        matrix.setPosition(
+          commandLine[currInstanceId]["x"],
+          commandLine[currInstanceId]["y"],
+          commandLine[currInstanceId]["z"]
+        );
+        voxels[currInstanceId].setMatrixAt(currInstanceId, matrix);
+        voxels[currInstanceId].rotation.x = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].tilt));
+        voxels[currInstanceId].rotation.y = THREE.Math.degToRad(parseFloat(commandLine[currInstanceId].pan));
+        voxels[currInstanceId].instanceMatrix.needsUpdate = true;
       }
+    }
 
-      function animate() {
-        requestAnimationFrame(animate);
-        controls.update();
-        // raycaster.setFromCamera( mouse, camera );
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
 
-        render();
-      }
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      // raycaster.setFromCamera( mouse, camera );
 
-      function render() {
-        renderer.render(scene, camera);
-      }
-    </script>
-  </body>
+      render();
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+  </script>
+</body>
+
 </html>

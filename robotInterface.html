@@ -51,11 +51,11 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
     let voxel;
     let camVox;
-    let objectIndex = 0;
     let transformControl;
     let currInstanceId = -1;
     let cubeLine = [];
     let voxels = [];
+
 
     // loads name of file to this variable 
     let fileName;
@@ -223,15 +223,15 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         if (typeof commandLine[i].capture == 'string') {
           voxel = new THREE.InstancedMesh(camGeo, cubeMaterial, count);
           voxels.push(voxel);
-          voxels[i].setColorAt(objectIndex, color.setHex(0x64ae64));
+          voxels[i].setColorAt(i, color.setHex(0x64ae64));
         } else {
           voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
           voxels.push(voxel);
-          voxels[i].setColorAt(objectIndex, color.setHex(0xD3D3D3));
+          voxels[i].setColorAt(i, color.setHex(0xD3D3D3));
         }
 
         matrix.setPosition(commandLine[i].x, commandLine[i].y, commandLine[i].z);
-        voxels[i].setMatrixAt(objectIndex, matrix);
+        voxels[i].setMatrixAt(i, matrix);
 
 
         // set object rotation and orientation angles
@@ -247,10 +247,8 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
         }
 
         scene.add(voxels[i]);
-        objectIndex++;
       }
 
-      // scene.add(camVox);
     }
 
     // click cube to show property
@@ -372,6 +370,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
     function render() {
       renderer.render(scene, camera);
     }
+
   </script>
 </body>
 

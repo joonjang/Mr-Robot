@@ -56,7 +56,7 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
     let cubeLine = [];
     let voxels = [];
 
-    
+
 
     // loads name of file to this variable 
     let fileName;
@@ -220,14 +220,13 @@ https://github.com/jasonChen1982/three.interaction.js/blob/master/examples/inter
 
       for (let i = 0; i < commandLine.length; i++) {
 
-        // set object to cone+green if capturing, else cube+grey
+        voxel = new THREE.InstancedMesh(camGeo, cubeMaterial, count);
+        voxels.push(voxel);
+
+        // set object to green if capturing, else grey
         if (typeof commandLine[i].capture == 'string') {
-          voxel = new THREE.InstancedMesh(camGeo, cubeMaterial, count);
-          voxels.push(voxel);
           voxels[i].setColorAt(i, color.setHex(0x64ae64));
         } else {
-          voxel = new THREE.InstancedMesh(cubeGeo, cubeMaterial, count);
-          voxels.push(voxel);
           voxels[i].setColorAt(i, color.setHex(0xD3D3D3));
         }
 
